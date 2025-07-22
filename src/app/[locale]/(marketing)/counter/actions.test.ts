@@ -29,14 +29,12 @@ describe('Counter', () => {
     } as any;
     mockHeaders.mockResolvedValue(mockHeadersObject);
 
-    // Default mock for database operations
-    mockDb.insert = vi.fn().mockReturnValue({
-      values: vi.fn().mockReturnValue({
-        onConflictDoUpdate: vi.fn().mockReturnValue({
-          returning: vi.fn().mockResolvedValue([{ count: 1 }]),
-        }),
-      }),
-    });
+    // Default mock for Prisma database operations
+    mockDb.counter = {
+      findUnique: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue({ id: 0, count: 1, createdAt: new Date(), updatedAt: new Date() }),
+      update: vi.fn().mockResolvedValue({ id: 0, count: 1, createdAt: new Date(), updatedAt: new Date() }),
+    } as any;
   });
 
   afterEach(() => {
@@ -97,22 +95,19 @@ describe('Counter', () => {
       const formData = new FormData();
       formData.append('increment', '1');
 
-      const mockReturning = vi.fn().mockResolvedValue([{ count: 1 }]);
-      const mockOnConflictDoUpdate = vi.fn().mockReturnValue({
-        returning: mockReturning,
-      });
-      const mockValues = vi.fn().mockReturnValue({
-        onConflictDoUpdate: mockOnConflictDoUpdate,
-      });
-      mockDb.insert = vi.fn().mockReturnValue({
-        values: mockValues,
+      mockDb.counter.findUnique = vi.fn().mockResolvedValue(null);
+      mockDb.counter.create = vi.fn().mockResolvedValue({
+        id: 0,
+        count: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       const result = await incrementCounter(undefined, formData);
 
       expect(result).toEqual({ count: 1 });
-      expect(mockDb.insert).toHaveBeenCalled();
-      expect(mockValues).toHaveBeenCalledWith({ id: 0, count: 1 });
+      expect(mockDb.counter.findUnique).toHaveBeenCalledWith({ where: { id: 0 } });
+      expect(mockDb.counter.create).toHaveBeenCalledWith({ data: { id: 0, count: 1 } });
       expect(mockLogger.info).toHaveBeenCalledWith('Counter has been incremented', {
         id: 0,
         increment: 1,
@@ -124,42 +119,64 @@ describe('Counter', () => {
       const formData = new FormData();
       formData.append('increment', '2');
 
-      const mockReturning = vi.fn().mockResolvedValue([{ count: 2 }]);
-      const mockOnConflictDoUpdate = vi.fn().mockReturnValue({
-        returning: mockReturning,
-      });
-      const mockValues = vi.fn().mockReturnValue({
-        onConflictDoUpdate: mockOnConflictDoUpdate,
-      });
-      mockDb.insert = vi.fn().mockReturnValue({
-        values: mockValues,
+      mockDb.counter.findUnique = vi.fn().mockResolvedValue(null);
+      mockDb.counter.create = vi.fn().mockResolvedValue({
+        id: 0,
+        count: 2,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       const result = await incrementCounter(undefined, formData);
 
       expect(result).toEqual({ count: 2 });
-      expect(mockValues).toHaveBeenCalledWith({ id: 0, count: 2 });
+      expect(mockDb.counter.create).toHaveBeenCalledWith({ data: { id: 0, count: 2 } });
     });
 
     it('should successfully increment counter with valid input (3)', async () => {
       const formData = new FormData();
       formData.append('increment', '3');
 
-      const mockReturning = vi.fn().mockResolvedValue([{ count: 3 }]);
-      const mockOnConflictDoUpdate = vi.fn().mockReturnValue({
-        returning: mockReturning,
-      });
-      const mockValues = vi.fn().mockReturnValue({
-        onConflictDoUpdate: mockOnConflictDoUpdate,
-      });
-      mockDb.insert = vi.fn().mockReturnValue({
-        values: mockValues,
+      mockDb.counter.findUnique = vi.fn().mockResolvedValue(null);
+      mockDb.counter.create = vi.fn().mockResolvedValue({
+        id: 0,
+        count: 3,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       const result = await incrementCounter(undefined, formData);
 
       expect(result).toEqual({ count: 3 });
-      expect(mockValues).toHaveBeenCalledWith({ id: 0, count: 3 });
+      expect(mockDb.counter.create).toHaveBeenCalledWith({ data: { id: 0, count: 3 } });
+    });
+
+    it('should update existing counter', async () => {
+      const formData = new FormData();
+      formData.append('increment', '1');
+
+      const existingCounter = {
+        id: 0,
+        count: 5,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      mockDb.counter.findUnique = vi.fn().mockResolvedValue(existingCounter);
+      mockDb.counter.update = vi.fn().mockResolvedValue({
+        ...existingCounter,
+        count: 6,
+        updatedAt: new Date(),
+      });
+
+      const result = await incrementCounter(undefined, formData);
+
+      expect(result).toEqual({ count: 6 });
+      expect(mockDb.counter.findUnique).toHaveBeenCalledWith({ where: { id: 0 } });
+      expect(mockDb.counter.update).toHaveBeenCalledWith({
+        where: { id: 0 },
+        data: { count: 6 },
+      });
     });
 
     it('should use custom id from x-e2e-random-id header', async () => {
@@ -176,21 +193,19 @@ describe('Counter', () => {
       const formData = new FormData();
       formData.append('increment', '1');
 
-      const mockReturning = vi.fn().mockResolvedValue([{ count: 1 }]);
-      const mockOnConflictDoUpdate = vi.fn().mockReturnValue({
-        returning: mockReturning,
-      });
-      const mockValues = vi.fn().mockReturnValue({
-        onConflictDoUpdate: mockOnConflictDoUpdate,
-      });
-      mockDb.insert = vi.fn().mockReturnValue({
-        values: mockValues,
+      mockDb.counter.findUnique = vi.fn().mockResolvedValue(null);
+      mockDb.counter.create = vi.fn().mockResolvedValue({
+        id: customId,
+        count: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       const result = await incrementCounter(undefined, formData);
 
       expect(result).toEqual({ count: 1 });
-      expect(mockValues).toHaveBeenCalledWith({ id: customId, count: 1 });
+      expect(mockDb.counter.findUnique).toHaveBeenCalledWith({ where: { id: customId } });
+      expect(mockDb.counter.create).toHaveBeenCalledWith({ data: { id: customId, count: 1 } });
     });
 
     it('should handle missing x-e2e-random-id header (default to 0)', async () => {
@@ -206,64 +221,50 @@ describe('Counter', () => {
       const formData = new FormData();
       formData.append('increment', '1');
 
-      const mockReturning = vi.fn().mockResolvedValue([{ count: 1 }]);
-      const mockOnConflictDoUpdate = vi.fn().mockReturnValue({
-        returning: mockReturning,
-      });
-      const mockValues = vi.fn().mockReturnValue({
-        onConflictDoUpdate: mockOnConflictDoUpdate,
-      });
-      mockDb.insert = vi.fn().mockReturnValue({
-        values: mockValues,
+      mockDb.counter.findUnique = vi.fn().mockResolvedValue(null);
+      mockDb.counter.create = vi.fn().mockResolvedValue({
+        id: 0,
+        count: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       const result = await incrementCounter(undefined, formData);
 
       expect(result).toEqual({ count: 1 });
-      expect(mockValues).toHaveBeenCalledWith({ id: 0, count: 1 });
+      expect(mockDb.counter.create).toHaveBeenCalledWith({ data: { id: 0, count: 1 } });
     });
 
     it('should handle string numbers in increment field (coercion)', async () => {
       const formData = new FormData();
       formData.append('increment', '2');
 
-      const mockReturning = vi.fn().mockResolvedValue([{ count: 2 }]);
-      const mockOnConflictDoUpdate = vi.fn().mockReturnValue({
-        returning: mockReturning,
-      });
-      const mockValues = vi.fn().mockReturnValue({
-        onConflictDoUpdate: mockOnConflictDoUpdate,
-      });
-      mockDb.insert = vi.fn().mockReturnValue({
-        values: mockValues,
+      mockDb.counter.findUnique = vi.fn().mockResolvedValue(null);
+      mockDb.counter.create = vi.fn().mockResolvedValue({
+        id: 0,
+        count: 2,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       const result = await incrementCounter(undefined, formData);
 
       expect(result).toEqual({ count: 2 });
-      expect(mockValues).toHaveBeenCalledWith({ id: 0, count: 2 });
+      expect(mockDb.counter.create).toHaveBeenCalledWith({ data: { id: 0, count: 2 } });
     });
 
-    it('should handle empty database result gracefully', async () => {
+    it('should handle null database result gracefully', async () => {
       const formData = new FormData();
       formData.append('increment', '1');
 
-      const mockReturning = vi.fn().mockResolvedValue([]);
-      const mockOnConflictDoUpdate = vi.fn().mockReturnValue({
-        returning: mockReturning,
-      });
-      const mockValues = vi.fn().mockReturnValue({
-        onConflictDoUpdate: mockOnConflictDoUpdate,
-      });
-      mockDb.insert = vi.fn().mockReturnValue({
-        values: mockValues,
-      });
+      mockDb.counter.findUnique = vi.fn().mockResolvedValue(null);
+      mockDb.counter.create = vi.fn().mockResolvedValue(null);
 
       const result = await incrementCounter(undefined, formData);
 
       expect(result).toHaveProperty('error');
       expect(result.error).toBe('Counter update completed but result is invalid. Please refresh and try again.');
-      expect(mockLogger.error).toHaveBeenCalledWith('Database returned invalid result', { result: [] });
+      expect(mockLogger.error).toHaveBeenCalledWith('Database returned invalid result', { result: null });
     });
   });
 
@@ -273,13 +274,7 @@ describe('Counter', () => {
       formData.append('increment', '1');
 
       const dbError = new Error('Database connection failed');
-      mockDb.insert = vi.fn().mockReturnValue({
-        values: vi.fn().mockReturnValue({
-          onConflictDoUpdate: vi.fn().mockReturnValue({
-            returning: vi.fn().mockRejectedValue(dbError),
-          }),
-        }),
-      });
+      mockDb.counter.findUnique = vi.fn().mockRejectedValue(dbError);
 
       const result = await incrementCounter(undefined, formData);
 
@@ -305,21 +300,18 @@ describe('Counter', () => {
       const formData = new FormData();
       formData.append('increment', '1');
 
-      const mockReturning = vi.fn().mockResolvedValue([{ count: 1 }]);
-      const mockOnConflictDoUpdate = vi.fn().mockReturnValue({
-        returning: mockReturning,
-      });
-      const mockValues = vi.fn().mockReturnValue({
-        onConflictDoUpdate: mockOnConflictDoUpdate,
-      });
-      mockDb.insert = vi.fn().mockReturnValue({
-        values: mockValues,
+      mockDb.counter.findUnique = vi.fn().mockResolvedValue(null);
+      mockDb.counter.create = vi.fn().mockResolvedValue({
+        id: 0,
+        count: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       const result = await incrementCounter(undefined, formData);
 
       expect(result).toEqual({ count: 1 });
-      expect(mockValues).toHaveBeenCalledWith({ id: 0, count: 1 }); // Should default to 0
+      expect(mockDb.counter.create).toHaveBeenCalledWith({ data: { id: 0, count: 1 } }); // Should default to 0
       expect(mockLogger.warn).toHaveBeenCalledWith('Invalid x-e2e-random-id header value', {
         headerValue: 'invalid-number',
       });
@@ -332,21 +324,18 @@ describe('Counter', () => {
       const formData = new FormData();
       formData.append('increment', '1');
 
-      const mockReturning = vi.fn().mockResolvedValue([{ count: 1 }]);
-      const mockOnConflictDoUpdate = vi.fn().mockReturnValue({
-        returning: mockReturning,
-      });
-      const mockValues = vi.fn().mockReturnValue({
-        onConflictDoUpdate: mockOnConflictDoUpdate,
-      });
-      mockDb.insert = vi.fn().mockReturnValue({
-        values: mockValues,
+      mockDb.counter.findUnique = vi.fn().mockResolvedValue(null);
+      mockDb.counter.create = vi.fn().mockResolvedValue({
+        id: 0,
+        count: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       const result = await incrementCounter(undefined, formData);
 
       expect(result).toEqual({ count: 1 });
-      expect(mockValues).toHaveBeenCalledWith({ id: 0, count: 1 }); // Should default to 0
+      expect(mockDb.counter.create).toHaveBeenCalledWith({ data: { id: 0, count: 1 } }); // Should default to 0
       expect(mockLogger.error).toHaveBeenCalledWith('Failed to read headers', { error: headerError });
     });
 
@@ -354,23 +343,20 @@ describe('Counter', () => {
       const formData = new FormData();
       formData.append('increment', '1');
 
-      const mockReturning = vi.fn().mockResolvedValue([{ count: undefined }]);
-      const mockOnConflictDoUpdate = vi.fn().mockReturnValue({
-        returning: mockReturning,
-      });
-      const mockValues = vi.fn().mockReturnValue({
-        onConflictDoUpdate: mockOnConflictDoUpdate,
-      });
-      mockDb.insert = vi.fn().mockReturnValue({
-        values: mockValues,
-      });
+      mockDb.counter.findUnique = vi.fn().mockResolvedValue(null);
+      mockDb.counter.create = vi.fn().mockResolvedValue({
+        id: 0,
+        count: undefined,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any);
 
       const result = await incrementCounter(undefined, formData);
 
       expect(result).toHaveProperty('error');
       expect(result.error).toBe('Counter update completed but result is invalid. Please refresh and try again.');
       expect(mockLogger.error).toHaveBeenCalledWith('Database returned invalid result', {
-        result: [{ count: undefined }],
+        result: { id: 0, count: undefined, createdAt: expect.any(Date), updatedAt: expect.any(Date) },
       });
     });
 
@@ -378,15 +364,12 @@ describe('Counter', () => {
       const formData = new FormData();
       formData.append('increment', '1');
 
-      const mockReturning = vi.fn().mockResolvedValue([{ count: 1 }]);
-      const mockOnConflictDoUpdate = vi.fn().mockReturnValue({
-        returning: mockReturning,
-      });
-      const mockValues = vi.fn().mockReturnValue({
-        onConflictDoUpdate: mockOnConflictDoUpdate,
-      });
-      mockDb.insert = vi.fn().mockReturnValue({
-        values: mockValues,
+      mockDb.counter.findUnique = vi.fn().mockResolvedValue(null);
+      mockDb.counter.create = vi.fn().mockResolvedValue({
+        id: 0,
+        count: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       // Mock logger.info to throw an error
@@ -413,13 +396,7 @@ describe('Counter', () => {
       formData.append('increment', '1');
 
       const dbError = new Error('Specific database error');
-      mockDb.insert = vi.fn().mockReturnValue({
-        values: vi.fn().mockReturnValue({
-          onConflictDoUpdate: vi.fn().mockReturnValue({
-            returning: vi.fn().mockRejectedValue(dbError),
-          }),
-        }),
-      });
+      mockDb.counter.findUnique = vi.fn().mockRejectedValue(dbError);
 
       const result = await incrementCounter(undefined, formData);
 
@@ -437,13 +414,7 @@ describe('Counter', () => {
       formData.append('increment', '1');
 
       const dbError = new Error('Specific database error');
-      mockDb.insert = vi.fn().mockReturnValue({
-        values: vi.fn().mockReturnValue({
-          onConflictDoUpdate: vi.fn().mockReturnValue({
-            returning: vi.fn().mockRejectedValue(dbError),
-          }),
-        }),
-      });
+      mockDb.counter.findUnique = vi.fn().mockRejectedValue(dbError);
 
       const result = await incrementCounter(undefined, formData);
 

@@ -1,7 +1,7 @@
 import prisma from './prisma';
 
 // This file provides database access using Prisma ORM
-// Replaces the previous Drizzle ORM implementation for production deployment
+// Replaces the previous Drizzle ORM implementation
 
 // Export the prisma client for use throughout the application
 export { default as db } from './prisma';

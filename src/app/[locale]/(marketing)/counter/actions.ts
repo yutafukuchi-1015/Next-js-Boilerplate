@@ -1,12 +1,10 @@
 'use server';
 
-import { sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import z from 'zod';
 import { db } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
-import { counterSchema } from '@/models/Schema';
 import { CounterValidation } from '@/validations/CounterValidation';
 
 export async function incrementCounter(_: unknown, formData: FormData) {
@@ -39,18 +37,25 @@ export async function incrementCounter(_: unknown, formData: FormData) {
     }
 
     // Database operation with error handling
-    let count;
+    let counter;
     try {
-      const result = await db
-        .insert(counterSchema)
-        .values({ id, count: parse.data.increment })
-        .onConflictDoUpdate({
-          target: counterSchema.id,
-          set: { count: sql`${counterSchema.count} + ${parse.data.increment}` },
-        })
-        .returning();
+      // Check if counter with this ID exists
+      const existingCounter = await db.counter.findUnique({
+        where: { id },
+      });
 
-      count = result;
+      if (existingCounter) {
+        // Update existing counter
+        counter = await db.counter.update({
+          where: { id },
+          data: { count: existingCounter.count + parse.data.increment },
+        });
+      } else {
+        // Create new counter
+        counter = await db.counter.create({
+          data: { id, count: parse.data.increment },
+        });
+      }
     } catch (dbError) {
       logger.error('Database operation failed', {
         error: dbError,
@@ -64,8 +69,8 @@ export async function incrementCounter(_: unknown, formData: FormData) {
     }
 
     // Validate database result
-    if (!count || count.length === 0 || count[0]?.count === undefined) {
-      logger.error('Database returned invalid result', { result: count });
+    if (!counter || counter.count === undefined) {
+      logger.error('Database returned invalid result', { result: counter });
       return {
         error: 'Counter update completed but result is invalid. Please refresh and try again.',
       };
@@ -76,7 +81,7 @@ export async function incrementCounter(_: unknown, formData: FormData) {
       logger.info('Counter has been incremented', {
         id,
         increment: parse.data.increment,
-        newCount: count[0].count,
+        newCount: counter.count,
       });
     } catch (logError) {
       // Don't fail the operation if logging fails
@@ -86,7 +91,7 @@ export async function incrementCounter(_: unknown, formData: FormData) {
     // Revalidate the counter page to update the CurrentCount component
     revalidatePath('/[locale]/counter', 'page');
 
-    return { count: count[0].count };
+    return { count: counter.count };
   } catch (error) {
     // Catch-all error handler for unexpected errors
     logger.error('Unexpected error in incrementCounter', { error });

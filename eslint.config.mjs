@@ -27,6 +27,8 @@ export default antfu(
     // Ignored paths
     ignores: [
       'migrations/**/*',
+      'src/generated/**/*',
+      'prisma/migrations/**/*',
     ],
   },
   // --- Next.js Specific Rules ---
