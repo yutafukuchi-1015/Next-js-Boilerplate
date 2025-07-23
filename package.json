@@ -7,9 +7,9 @@
   "scripts": {
     "dev:spotlight": "npx @spotlightjs/spotlight",
     "dev:next": "next dev --turbopack",
-    "dev": "run-p db-server:file dev:*",
+    "dev": "npm-run-all --serial  db:generate db:push dev:next",
     "build:next": "next build",
-    "build": "run-p db-server:memory build:* --race",
+    "build": "npm-run-all --serial db:generate db:push build:*",
     "start": "next start",
     "build-stats": "cross-env ANALYZE=true npm run build",
     "clean": "rimraf .next out coverage",
@@ -24,12 +24,13 @@
     "db-server:file": "pglite-server --db=local.db",
     "db-server:memory": "pglite-server",
     "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "storybook": "storybook dev -p 6006",
     "storybook:test": "vitest run --config .storybook/vitest.config.mts",
     "build-storybook": "storybook build",
     "lighthouse": "unlighthouse-ci --site localhost:3000",
-    "test:lighthouse": "run-p start lighthouse --race"
+    "test:lighthouse": "npm-run-all --parallel start lighthouse --race"
   },
   "dependencies": {
     "@arcjet/next": "^1.0.0-beta.8",
